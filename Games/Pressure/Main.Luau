@@ -628,10 +628,14 @@ local function updateKeybindsPanel()
 end
 
 -- ==========================================
--- TPWALK
+-- TPWALK (с anti-clip через raycast)
 -- ==========================================
 local tpWalkEnabled = false
 local tpWalkSpeed = 1
+
+local tpRayParams = RaycastParams.new()
+tpRayParams.FilterType = Enum.RaycastFilterType.Exclude
+tpRayParams.IgnoreWater = true
 
 local function getMoveDirection()
     local camera = workspace.CurrentCamera
@@ -652,7 +656,7 @@ end
 local tpWalkConn = nil
 
 local function startTpWalk()
-    if tpWalkConn then tpWalkConn:Disconnect() end
+    if tpWalkConn then tpWalkConn:Disconnect() tpWalkConn = nil end
     tpWalkConn = RunService.Heartbeat:Connect(function()
         if not tpWalkEnabled then return end
         local char = LocalPlayer.Character
@@ -662,11 +666,45 @@ local function startTpWalk()
         if not hrp or not hum then return end
         local dir = getMoveDirection()
         if dir == Vector3.zero then return end
+
         local moveOffset = dir * tpWalkSpeed * 0.1
-        local newPos = hrp.Position + moveOffset
-        newPos = Vector3.new(newPos.X, hrp.Position.Y, newPos.Z)
-        hrp.CFrame = CFrame.new(newPos, newPos + dir)
-        hrp.AssemblyLinearVelocity = Vector3.new(dir.X * tpWalkSpeed * 3, hrp.AssemblyLinearVelocity.Y, dir.Z * tpWalkSpeed * 3)
+        local currentPos = hrp.Position
+        local targetPos = currentPos + moveOffset
+        targetPos = Vector3.new(targetPos.X, currentPos.Y, targetPos.Z)
+
+        -- Raycast по горизонтали — проверяем стену
+        tpRayParams.FilterDescendantsInstances = {char}
+        local rayDist = moveOffset.Magnitude + 3
+        local rayResult = workspace:Raycast(currentPos, Vector3.new(dir.X, 0, dir.Z) * rayDist, tpRayParams)
+
+        if rayResult then
+            -- Стена впереди — скользим вдоль
+            local normal = rayResult.Normal
+            normal = Vector3.new(normal.X, 0, normal.Z)
+            if normal.Magnitude > 0 then
+                normal = normal.Unit
+            end
+            local slideDir = dir - normal * dir:Dot(normal)
+            if slideDir.Magnitude > 0.01 then
+                slideDir = slideDir.Unit
+                local slideOffset = slideDir * tpWalkSpeed * 0.1
+                local slidePos = currentPos + slideOffset
+                slidePos = Vector3.new(slidePos.X, currentPos.Y, slidePos.Z)
+
+                -- Второй raycast вдоль стены
+                local ray2 = workspace:Raycast(currentPos, slideDir * (slideOffset.Magnitude + 3), tpRayParams)
+                if not ray2 then
+                    targetPos = slidePos
+                else
+                    targetPos = currentPos
+                end
+            else
+                targetPos = currentPos
+            end
+        end
+
+        hrp.CFrame = CFrame.new(targetPos, targetPos + Vector3.new(dir.X, 0, dir.Z))
+        hrp.AssemblyLinearVelocity = Vector3.new(0, hrp.AssemblyLinearVelocity.Y, 0)
     end)
 end
 
