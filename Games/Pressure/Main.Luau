@@ -753,97 +753,6 @@ local function stopJump()
 end
 
 -- ==========================================
--- SWIM BOOST (точно как Fly, только в воде)
--- ==========================================
-local swimBoostEnabled = false
-local swimSpeed = 80
-local swimConn = nil
-
-local function checkInWater(char)
-    local hum = char:FindFirstChild("Humanoid")
-    if not hum then return false end
-    if hum:GetState() == Enum.HumanoidStateType.Swimming then
-        return true
-    end
-    if hum.FloorMaterial == Enum.Material.Water then
-        return true
-    end
-    -- Запасная проверка через Terrain
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        local terrain = workspace:FindFirstChildWhichIsA("Terrain")
-        if terrain then
-            local pos = hrp.Position
-            local region = Region3.new(
-                Vector3.new(pos.X - 2, pos.Y - 3, pos.Z - 2),
-                Vector3.new(pos.X + 2, pos.Y + 3, pos.Z + 2)
-            )
-            local voxels = terrain:ReadVoxels(region, 4)
-            if voxels and voxels[1] then
-                for x = 1, #voxels[1] do
-                    for y = 1, #voxels[1][x] do
-                        for z = 1, #voxels[1][x][y] do
-                            if voxels[1][x][y][z] == Enum.Material.Water then
-                                return true
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-    return false
-end
-
-local function startSwimBoost()
-    if swimConn then swimConn:Disconnect() swimConn = nil end
-
-    swimConn = RunService.RenderStepped:Connect(function()
-        if not swimBoostEnabled then return end
-
-        local char = LocalPlayer.Character
-        if not char then return end
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        local hum = char:FindFirstChild("Humanoid")
-        if not hrp or not hum then return end
-
-        local camera = workspace.CurrentCamera
-        if not camera then return end
-
-        local inWater = checkInWater(char)
-
-        if inWater then
-            local lookVec = camera.CFrame.LookVector
-            local rightVec = camera.CFrame.RightVector
-            local upVec = Vector3.new(0, 1, 0)
-
-            local moveVec = Vector3.new(0, 0, 0)
-
-            if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveVec = moveVec + lookVec end
-            if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveVec = moveVec - lookVec end
-            if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveVec = moveVec - rightVec end
-            if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveVec = moveVec + rightVec end
-            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveVec = moveVec + upVec end
-            if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then moveVec = moveVec - upVec end
-
-            if moveVec.Magnitude > 0 then
-                moveVec = moveVec.Unit
-            end
-
-            local dt = 0.016
-            local newPos = hrp.Position + moveVec * swimSpeed * dt
-            hrp.CFrame = CFrame.new(newPos, newPos + lookVec)
-            hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-        end
-    end)
-end
-
-local function stopSwimBoost()
-    swimBoostEnabled = false
-    if swimConn then swimConn:Disconnect() swimConn = nil end
-end
-
--- ==========================================
 -- INFINITY JUMP
 -- ==========================================
 local infinityJumpEnabled = false
@@ -1952,7 +1861,6 @@ destroyBtn.MouseButton1Click:Connect(function()
     stopBypassRushing()
     stopBypassEyefestation()
     stopInfinityJump()
-    stopSwimBoost()
     if espScanConn then task.cancel(espScanConn) espScanConn = nil end
     if espUpdateConn then espUpdateConn:Disconnect() espUpdateConn = nil end
     if entityEspScanConn then task.cancel(entityEspScanConn) entityEspScanConn = nil end
