@@ -1,4 +1,4 @@
--- Fixed Hub — Menu для Solara (Pressure)
+-- Fixed Hub — Menu для Solara (Pressure) Made by(kotiku651zahar)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
